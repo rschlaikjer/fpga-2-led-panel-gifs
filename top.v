@@ -67,33 +67,43 @@ module top(
     assign LED_R = led;
     assign LED_B = ~led;
 
-    localparam PRESCALER = (`CLK_HZ / 2) - 1;
+    localparam PRESCALER = (`CLK_HZ / 10) - 1;
     reg [$clog2(PRESCALER):0] prescaler_reg = 0;
     always @(posedge clk_48mhz) begin
         if (prescaler_reg == 0) begin
             led <= ~led;
             prescaler_reg <= PRESCALER;
+            ram_w_addr <= ram_w_addr + 1;
+            ram_write_stb <= 1;
         end else begin
+            ram_write_stb <= 0;
             // Downcount prescaler
             prescaler_reg <= prescaler_reg - 1;
         end
     end
 
-    wire [11:0] ram_addr;
-    wire [15:0] ram_data;
+    reg [11:0] ram_w_addr = 0;
+    reg [15:0] ram_w_data = 16'h8000;
+    wire ram_write_stb;
+    wire [11:0] ram_r_addr;
+    wire [15:0] ram_r_data;
     wire ram_read_stb;
     pixel_ram ram1 (
         .i_clk(clk_48mhz),
-        .i_w_data(16'b0),
-        .i_w_addr(12'b0),
-        .i_w_enable(1'b0),
-        .i_r_addr(ram_addr),
-        .o_r_data(ram_data),
+        .i_w_data(ram_w_data),
+        .i_w_addr(ram_w_addr),
+        .i_w_enable(ram_write_stb),
+        .i_r_addr(ram_r_addr),
+        .o_r_data(ram_r_data),
         .i_r_enable(ram_read_stb)
     );
 
     panel_driver driver(
         .i_clk(clk_48mhz),
+        // Memory interface
+        .o_ram_addr(ram_r_addr),
+        .i_ram_data(ram_r_data),
+        .o_ram_read_stb(ram_read_stb),
         .o_data_clock(rgb_panel_ck),
         .o_data_latch(rgb_panel_la),
         .o_data_blank(rgb_panel_bl),

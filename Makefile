@@ -2,7 +2,7 @@ PROJ := top
 PIN_DEF := hx4k_pmod.pcf
 DEVICE := hx8k
 PACKAGE := tq144:4k
-ARGS := -abc9
+ARGS := -dsp
 FREQ := 48
 ADD_SRC := ice_pll.v pixel_ram.v pixel_ram_block.v panel_driver.v
 

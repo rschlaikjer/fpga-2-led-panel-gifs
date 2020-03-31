@@ -1,3 +1,5 @@
+`default_nettype none
+
 module pixel_ram(
     input wire i_clk,
     // Write interface
