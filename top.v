@@ -74,7 +74,7 @@ module top(
             led <= ~led;
             prescaler_reg <= PRESCALER;
             ram_w_addr <= ram_w_addr + 1;
-            ram_write_stb <= 0;
+            // ram_write_stb <= 1;
         end else begin
             ram_write_stb <= 0;
             if (ram_w_addr == 0) begin
@@ -108,7 +108,9 @@ module top(
     );
 
     // assign rgb_panel_a = 5'b00001;
-    panel_driver driver(
+    panel_driver #(
+        .PRESCALER(1)
+    ) driver(
         .i_clk(clk_48mhz),
         // Memory interface
         .o_ram_addr(ram_r_addr),

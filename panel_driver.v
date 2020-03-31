@@ -18,6 +18,8 @@ module panel_driver(
     output wire [4:0] o_row_select
 );
 
+parameter PRESCALER = 0;
+
 localparam
     s_data_shift = 0,
     s_blank_set = 1,
@@ -50,60 +52,69 @@ localparam
     assign o_data_g = data_g;
     assign o_data_b = data_b;
 
+    // Since the panel might not be able to run at core clock speed,
+    // add a prescaler to panel operations
+    reg [$clog2(PRESCALER):0] prescaler_reg = 0;
+
     reg [2:0] state = s_data_shift;
     reg [7:0] pixels_to_shift = 64;
     always @(posedge i_clk) begin
-        case (state)
-            s_data_shift: begin
-             // Shift out new column data for this row
-             // Need to load from internal RAM
-             if (pixels_to_shift > 0) begin
-                 if (data_clock == 0) begin
-                     data_r <= i_ram_data[15:14];
-                     data_g <= i_ram_data[13:12];
-                     data_b <= i_ram_data[11:10];
-                     data_clock <= 1;
-                     ram_addr <= ram_addr + 1;
+        if (prescaler_reg > 0)
+            prescaler_reg <= prescaler_reg - 1;
+        else begin
+            prescaler_reg <= PRESCALER;
+            case (state)
+                s_data_shift: begin
+                 // Shift out new column data for this row
+                 // Need to load from internal RAM
+                 if (pixels_to_shift > 0) begin
+                     if (data_clock == 0) begin
+                         data_r <= i_ram_data[15:14];
+                         data_g <= i_ram_data[13:12];
+                         data_b <= i_ram_data[11:10];
+                         data_clock <= 1;
+                         ram_addr <= ram_addr + 1;
+                     end else begin
+                         data_clock <= 0;
+                         pixels_to_shift <= pixels_to_shift - 1;
+                     end
                  end else begin
-                     data_clock <= 0;
-                     pixels_to_shift <= pixels_to_shift - 1;
+                    ram_read_stb <= 0;
+                    state <= s_blank_set;
                  end
-             end else begin
-                ram_read_stb <= 0;
-                state <= s_blank_set;
              end
-         end
-         s_blank_set: begin
-             data_blank <= 1;
-             state <= s_latch_set;
-         end
-         s_latch_set: begin
-             data_latch <= 1;
-             state <= s_increment_row;
-         end
-         s_increment_row: begin
-             // Increment row
-             row_address <= row_address + 1;
-             state <= s_latch_clear;
-         end
-         s_latch_clear: begin
-             // Clear the blanking line
-             data_latch <= 0;
-             state <= s_blank_clear;
-         end
-         s_blank_clear: begin
-             // Clear the blanking line
-             data_blank <= 0;
+             s_blank_set: begin
+                 data_blank <= 1;
+                 state <= s_latch_set;
+             end
+             s_latch_set: begin
+                 data_latch <= 1;
+                 state <= s_increment_row;
+             end
+             s_increment_row: begin
+                 // Increment row
+                 row_address <= row_address + 1;
+                 state <= s_latch_clear;
+             end
+             s_latch_clear: begin
+                 // Clear the blanking line
+                 data_latch <= 0;
+                 state <= s_blank_clear;
+             end
+             s_blank_clear: begin
+                 // Clear the blanking line
+                 data_blank <= 0;
 
-             // Reset number of pixels to shift
-             pixels_to_shift <= 64;
+                 // Reset number of pixels to shift
+                 pixels_to_shift <= 64;
 
-             // Set the read strobe high here so the first cycle of the shift
-             // stage has valid data
-             ram_read_stb <= 1;
-             state <= s_data_shift;
-         end
-        endcase
+                 // Set the read strobe high here so the first cycle of the shift
+                 // stage has valid data
+                 ram_read_stb <= 1;
+                 state <= s_data_shift;
+             end
+            endcase
+        end
     end
 
 endmodule
