@@ -74,16 +74,16 @@ module top(
             led <= ~led;
             prescaler_reg <= PRESCALER;
             ram_w_addr <= ram_w_addr + 1;
-            ram_write_stb <= 1;
+            ram_write_stb <= 0;
         end else begin
             ram_write_stb <= 0;
             if (ram_w_addr == 0) begin
-                if (ram_w_data == 16'b11_00_00_00_00000000)
-                    ram_w_data <= 16'b00_11_00_00_00000000;
-                if (ram_w_data == 16'b00_11_00_00_00000000)
-                    ram_w_data <= 16'b00_00_11_00_00000000;
-                if (ram_w_data == 16'b00_00_11_00_00000000)
-                    ram_w_data <= 16'b11_00_00_00_00000000;
+                if (ram_w_data == 16'b10_01_00_00_00000000)
+                    ram_w_data <= 16'b00_10_01_00_00000000;
+                if (ram_w_data == 16'b00_10_01_00_00000000)
+                    ram_w_data <= 16'b01_00_10_00_00000000;
+                if (ram_w_data == 16'b01_00_10_00_00000000)
+                    ram_w_data <= 16'b10_01_00_00_00000000;
 
             end
             // Downcount prescaler
@@ -92,7 +92,7 @@ module top(
     end
 
     reg [11:0] ram_w_addr = 0;
-    reg [15:0] ram_w_data = 16'h9000;
+    reg [15:0] ram_w_data = 16'b10_01_00_00_00000000;
     wire ram_write_stb;
     wire [11:0] ram_r_addr;
     wire [15:0] ram_r_data;
@@ -107,6 +107,7 @@ module top(
         .i_r_enable(ram_read_stb)
     );
 
+    // assign rgb_panel_a = 5'b00001;
     panel_driver driver(
         .i_clk(clk_48mhz),
         // Memory interface

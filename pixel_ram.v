@@ -8,9 +8,28 @@ module pixel_ram(
     input wire i_w_enable,
     // Read interface
     input wire [11:0] i_r_addr,
-    output wire [15:0] o_r_data,
+    output reg [15:0] o_r_data,
     input wire i_r_enable
 );
+
+reg [15:0] data[4096];
+// integer i;
+initial begin
+    // data[0] = 16'b10_00_00_00_00000000;
+    // for (i = 1; i < 4096; i++)
+    //     data[i] = 16'h0000;
+    $readmemh("image.hex", data);
+end
+
+always @(posedge i_clk)
+    if (i_r_enable)
+        o_r_data <= data[i_r_addr];
+
+always @(posedge i_clk)
+    if (i_w_enable)
+        data[i_w_addr] <= i_w_data;
+
+    /*
 
 wire [15:0] ram_data [15:0];
 wire [15:0] ram_select;
@@ -56,5 +75,6 @@ generate for (i = 0; i < 16; i = i + 1)
 endgenerate
 
 
+*/
 
 endmodule
