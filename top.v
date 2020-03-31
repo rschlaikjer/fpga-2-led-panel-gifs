@@ -67,7 +67,7 @@ module top(
     assign LED_R = led;
     assign LED_B = ~led;
 
-    localparam PRESCALER = (`CLK_HZ / 10) - 1;
+    localparam PRESCALER = (`CLK_HZ / 128) - 1;
     reg [$clog2(PRESCALER):0] prescaler_reg = 0;
     always @(posedge clk_48mhz) begin
         if (prescaler_reg == 0) begin
@@ -77,13 +77,22 @@ module top(
             ram_write_stb <= 1;
         end else begin
             ram_write_stb <= 0;
+            if (ram_w_addr == 0) begin
+                if (ram_w_data == 16'b11_00_00_00_00000000)
+                    ram_w_data <= 16'b00_11_00_00_00000000;
+                if (ram_w_data == 16'b00_11_00_00_00000000)
+                    ram_w_data <= 16'b00_00_11_00_00000000;
+                if (ram_w_data == 16'b00_00_11_00_00000000)
+                    ram_w_data <= 16'b11_00_00_00_00000000;
+
+            end
             // Downcount prescaler
             prescaler_reg <= prescaler_reg - 1;
         end
     end
 
     reg [11:0] ram_w_addr = 0;
-    reg [15:0] ram_w_data = 16'h8000;
+    reg [15:0] ram_w_data = 16'h9000;
     wire ram_write_stb;
     wire [11:0] ram_r_addr;
     wire [15:0] ram_r_data;

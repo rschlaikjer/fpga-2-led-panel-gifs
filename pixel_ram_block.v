@@ -16,7 +16,7 @@ reg [15:0] data[256];
 integer i;
 initial begin
     for (i = 0; i < 256; i++)
-        data[i] = 16'h80;
+        data[i] = 16'h8000;
 end
 
 always @(posedge i_clk)

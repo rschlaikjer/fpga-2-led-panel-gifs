@@ -50,16 +50,8 @@ localparam
     assign o_data_g = data_g;
     assign o_data_b = data_b;
 
-    function [4:0] add_one(input [4:0] v);
-        add_one = v + 1;
-    endfunction
-
-    function [3:0] take_top4(input [4:0] v);
-        take_top4 = v[4:1];
-    endfunction
-
     reg [2:0] state = s_data_shift;
-    reg [7:0] pixels_to_shift = 128;
+    reg [7:0] pixels_to_shift = 64;
     always @(posedge i_clk) begin
         case (state)
             s_data_shift: begin
