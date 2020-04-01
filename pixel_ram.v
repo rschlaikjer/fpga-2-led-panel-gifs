@@ -14,13 +14,6 @@ module pixel_ram(
 );
 
 reg [15:0] data[4096];
-// integer i;
-initial begin
-    // data[0] = 16'b10_00_00_00_00000000;
-    // for (i = 1; i < 4096; i++)
-    //     data[i] = 16'h0000;
-    $readmemh("image.hex", data);
-end
 
 always @(posedge i_clk)
     if (i_r_enable) begin
