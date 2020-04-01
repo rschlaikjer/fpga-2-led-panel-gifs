@@ -4,7 +4,7 @@ DEVICE := hx8k
 PACKAGE := tq144:4k
 ARGS := -dsp
 FREQ := 48
-ADD_SRC := ice_pll.v pixel_ram.v pixel_ram_block.v panel_driver.v
+ADD_SRC := ice_pll.v pixel_ram.v pixel_ram_block.v panel_driver.v flash_loader.v
 
 all: $(PROJ).rpt $(PROJ).bin
 

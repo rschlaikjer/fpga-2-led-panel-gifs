@@ -11,6 +11,12 @@ module top(
         output wire LED_G,
         output wire LED_B,
 
+        // Flash chip
+        output wire FLASH_SPI_CS,
+        output wire FLASH_SPI_SCK,
+        output wire FLASH_SPI_MOSI,
+        input  wire FLASH_SPI_MISO,
+
         // PMOD C1
         output wire PMOD_C1_D0,
         output wire PMOD_C1_D1,
@@ -67,35 +73,33 @@ module top(
     assign LED_R = led;
     assign LED_B = ~led;
 
-    localparam PRESCALER = (`CLK_HZ / 128) - 1;
+    reg flash_load_strobe;
+    reg [7:0] frame_index = 0;
+
+    localparam PRESCALER = (`CLK_HZ / 10) - 1;
     reg [$clog2(PRESCALER):0] prescaler_reg = 0;
     always @(posedge clk_48mhz) begin
         if (prescaler_reg == 0) begin
             led <= ~led;
             prescaler_reg <= PRESCALER;
-            ram_w_addr <= ram_w_addr + 1;
-            // ram_write_stb <= 1;
+            flash_load_strobe <= 1;
+            if (frame_index == 11)
+                frame_index <= 0;
+            else
+                frame_index <= frame_index + 1;
         end else begin
-            ram_write_stb <= 0;
-            if (ram_w_addr == 0) begin
-                if (ram_w_data == 16'b10_01_00_00_00000000)
-                    ram_w_data <= 16'b00_10_01_00_00000000;
-                if (ram_w_data == 16'b00_10_01_00_00000000)
-                    ram_w_data <= 16'b01_00_10_00_00000000;
-                if (ram_w_data == 16'b01_00_10_00_00000000)
-                    ram_w_data <= 16'b10_01_00_00_00000000;
-
-            end
             // Downcount prescaler
             prescaler_reg <= prescaler_reg - 1;
+            flash_load_strobe <= 0;
         end
     end
 
-    reg [11:0] ram_w_addr = 0;
-    reg [15:0] ram_w_data = 16'b10_01_00_00_00000000;
+    wire [11:0] ram_w_addr;
+    wire [15:0] ram_w_data;
     wire ram_write_stb;
-    wire [11:0] ram_r_addr;
-    wire [15:0] ram_r_data;
+    wire [10:0] ram_r_addr;
+    wire [15:0] ram_bank1_data;
+    wire [15:0] ram_bank2_data;
     wire ram_read_stb;
     pixel_ram ram1 (
         .i_clk(clk_48mhz),
@@ -103,18 +107,39 @@ module top(
         .i_w_addr(ram_w_addr),
         .i_w_enable(ram_write_stb),
         .i_r_addr(ram_r_addr),
-        .o_r_data(ram_r_data),
+        .o_bank1_data(ram_bank1_data),
+        .o_bank2_data(ram_bank2_data),
         .i_r_enable(ram_read_stb)
     );
 
-    // assign rgb_panel_a = 5'b00001;
+    localparam FLASH_BASE = 24'h80_00_00;
+    wire [23:0] flash_load_addr = {FLASH_BASE[23:21], frame_index, 13'b0};
+    // wire [23:0] flash_load_addr = FLASH_BASE;
+
+    // Loader for initializing ram from the flash chip
+    flash_loader loader(
+        .i_clk(clk_48mhz),
+        .i_read_addr(flash_load_addr),
+        .i_read_stb(flash_load_strobe),
+        // SPI lines
+        .o_flash_mosi(FLASH_SPI_MOSI),
+        .i_flash_miso(FLASH_SPI_MISO),
+        .o_flash_sck(FLASH_SPI_SCK),
+        .o_flash_cs(FLASH_SPI_CS),
+        // Memory bus
+        .o_ram_addr(ram_w_addr),
+        .o_ram_data(ram_w_data),
+        .o_ram_write_en(ram_write_stb)
+    );
+
     panel_driver #(
         .PRESCALER(1)
     ) driver(
         .i_clk(clk_48mhz),
         // Memory interface
         .o_ram_addr(ram_r_addr),
-        .i_ram_data(ram_r_data),
+        .i_ram_b1_data(ram_bank1_data),
+        .i_ram_b2_data(ram_bank2_data),
         .o_ram_read_stb(ram_read_stb),
         .o_data_clock(rgb_panel_ck),
         .o_data_latch(rgb_panel_la),

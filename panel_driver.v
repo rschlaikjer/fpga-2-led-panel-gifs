@@ -3,8 +3,9 @@
 module panel_driver(
     input wire i_clk,
     // Memory interface
-    output wire [11:0] o_ram_addr,
-    input wire [15:0] i_ram_data,
+    output wire [10:0] o_ram_addr,
+    input wire [15:0] i_ram_b1_data,
+    input wire [15:0] i_ram_b2_data,
     output wire o_ram_read_stb,
     // Shift register control
     output wire o_data_clock,
@@ -29,7 +30,7 @@ localparam
     s_blank_clear = 5;
 
     // Register RAM signals
-    reg [11:0] ram_addr = 0;
+    reg [10:0] ram_addr = 0;
     reg ram_read_stb = 0;
     assign o_ram_addr = ram_addr;
     assign o_ram_read_stb = ram_read_stb;
@@ -69,9 +70,12 @@ localparam
                  // Need to load from internal RAM
                  if (pixels_to_shift > 0) begin
                      if (data_clock == 0) begin
-                         data_r <= i_ram_data[15:14];
-                         data_g <= i_ram_data[13:12];
-                         data_b <= i_ram_data[11:10];
+                         data_r <= {i_ram_b2_data[15], i_ram_b1_data[15]};
+                         data_g <= {i_ram_b2_data[10], i_ram_b1_data[10]};
+                         data_b <= {i_ram_b2_data[4], i_ram_b1_data[4]};
+                         // data_r <= i_ram_data[15:12];
+                         // data_g <= i_ram_data[11:6];
+                         // data_b <= i_ram_data[4:0];
                          data_clock <= 1;
                          ram_addr <= ram_addr + 1;
                      end else begin
