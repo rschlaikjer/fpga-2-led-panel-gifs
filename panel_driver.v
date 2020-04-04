@@ -27,8 +27,7 @@ localparam
     s_latch_set = 2,
     s_increment_row = 3,
     s_latch_clear = 4,
-    s_blank_clear = 5,
-    s_expose_pixels = 6;
+    s_blank_clear = 5;
 
     // Register RAM signals
     reg [10:0] ram_addr = 0;
