@@ -12,3 +12,10 @@ verilate(flash_loader_tb COVERAGE TRACE
     VERILATOR_ARGS -O2 -x-assign 0
     SOURCES ${PROJECT_SOURCE_DIR}/../flash_loader.v
 )
+
+add_executable(panel_driver_tb panel_driver_tb.cpp)
+verilate(panel_driver_tb COVERAGE TRACE
+    INCLUDE_DIRS "${PROJECT_SOURCE_DIR}"
+    VERILATOR_ARGS -O2 -x-assign 0
+    SOURCES ${PROJECT_SOURCE_DIR}/../panel_driver.v
+)
