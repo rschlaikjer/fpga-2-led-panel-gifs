@@ -76,19 +76,15 @@ localparam
     // In total, that's 31 time periods per update cycle if we want to display
     // colours with a 5 bit depth.
 
-    // However, our panel is designed for 1/32 multiplexing - if we just leave
-    // the exposure fully on for a given row, we will end up with an overexposed
-    // image.
-
     // How many periods should we wait for the given bit of the pixel data
     // Bit 4 = MSB
     reg [8:0] time_periods_for_bit[5];
     initial begin
-        time_periods_for_bit[4] = 64;
-        time_periods_for_bit[3] = 32;
-        time_periods_for_bit[2] = 16;
-        time_periods_for_bit[1] = 8;
-        time_periods_for_bit[0] = 4;
+        time_periods_for_bit[4] = 128;
+        time_periods_for_bit[3] = 64;
+        time_periods_for_bit[2] = 32;
+        time_periods_for_bit[1] = 16;
+        time_periods_for_bit[0] = 8;
     end
 
     // How many time periods should we continue to wait for this bit of the
@@ -104,52 +100,69 @@ localparam
         if (prescaler_reg > 0)
             prescaler_reg <= prescaler_reg - 1;
         else begin
-            prescaler_reg <= PRESCALER;
+            prescaler_reg <= PRESCALER[$clog2(PRESCALER):0];
             case (state)
-                s_data_shift: begin
-                 // Shift out new column data for this row
-                 // Need to load from internal RAM
-                 if (pixels_to_shift > 0) begin
-                     if (data_clock == 0) begin
-                         // We need to load the n'th most significant bit of
-                         // each colour channel, based on which pixel bit index
-                         // we are currently displaying
-                         // pixel_bit_index is in range 0..4
-                         data_r <= {i_ram_b2_data[11 + pixel_bit_index],
-                                    i_ram_b1_data[11 + pixel_bit_index]};
-                         data_g <= {i_ram_b2_data[6 + pixel_bit_index],
-                                    i_ram_b1_data[6 + pixel_bit_index]};
-                         data_b <= {i_ram_b2_data[0 + pixel_bit_index],
-                                    i_ram_b1_data[0 + pixel_bit_index]};
-                         data_clock <= 1;
-                         ram_addr <= ram_addr + 1;
-                     end else begin
-                         data_clock <= 0;
-                         pixels_to_shift <= pixels_to_shift - 1;
-                     end
-                 end else begin
-                    ram_read_stb <= 0;
-                    state <= s_blank_set;
-                 end
+
+            s_data_shift: begin
+                // Expose the previous row while we do our data loading.
+                // Our most significant bit display time is such that it
+                // matches the number of cycles it takes to load data, and then
+                // each successive bit halves that value.
+                if (time_periods_remaining == 0) begin
+                    // Turn the blanking back on
+                    data_blank <= 1;
+                end else begin
+                    time_periods_remaining <= time_periods_remaining - 1;
+                end
+
+                // Shift out new column data for this row
+                // Need to load from internal RAM
+                if (pixels_to_shift > 0) begin
+                    if (data_clock == 0) begin
+                        // We need to load the n'th most significant bit of
+                        // each colour channel, based on which pixel bit index
+                        // we are currently displaying
+                        // pixel_bit_index is in range 0..4
+                        data_r <= {i_ram_b2_data[11 + pixel_bit_index],
+                                   i_ram_b1_data[11 + pixel_bit_index]};
+                        data_g <= {i_ram_b2_data[6 + pixel_bit_index],
+                                   i_ram_b1_data[6 + pixel_bit_index]};
+                        data_b <= {i_ram_b2_data[0 + pixel_bit_index],
+                                   i_ram_b1_data[0 + pixel_bit_index]};
+                        data_clock <= 1;
+                        ram_addr <= ram_addr + 1;
+                    end else begin
+                        data_clock <= 0;
+                        pixels_to_shift <= pixels_to_shift - 1;
+                    end
+                end else begin
+                   ram_read_stb <= 0;
+                   state <= s_blank_set;
+                end
              end
+
              s_blank_set: begin
                  data_blank <= 1;
                  state <= s_latch_set;
              end
+
              s_latch_set: begin
                  data_latch <= 1;
                  state <= s_increment_row;
              end
+
              s_increment_row: begin
                  // Increment row
                  row_address <= row_address + 1;
                  state <= s_latch_clear;
              end
+
              s_latch_clear: begin
                  // Clear the blanking line
                  data_latch <= 0;
                  state <= s_blank_clear;
              end
+
              s_blank_clear: begin
                  // Clear the blanking line
                  data_blank <= 0;
@@ -158,38 +171,28 @@ localparam
                  // row for
                  time_periods_remaining <= time_periods_for_bit[pixel_bit_index];
 
-                 // Move to the exposure state
-                 state <= s_expose_pixels;
+                 // Reset number of pixels to shift
+                 pixels_to_shift <= 64;
+
+                 // Set the read strobe high here so the first cycle of the
+                 // shift stage has valid data
+                 ram_read_stb <= 1;
+
+                 // If the current row address is zero, we have done one
+                 // full scan through the display, and should move to the
+                 // next most significant bit
+                 if (row_address == 0) begin
+                    if (pixel_bit_index == 0)
+                        // If we hit the lsb, wrap to the msb
+                        pixel_bit_index <= 4;
+                    else
+                        pixel_bit_index <= pixel_bit_index - 1;
+                 end
+
+                 // Advance back to the data shift state
+                 state <= s_data_shift;
              end
-             s_expose_pixels: begin
-                 // Hold the row here for as many time periods as are required
-                 // for the significance of the bit we are displaying
-                 if (time_periods_remaining == 0) begin
-                     // Reset number of pixels to shift
-                     pixels_to_shift <= 64;
-                     data_blank <= 1;
 
-                     // Set the read strobe high here so the first cycle of the shift
-                     // stage has valid data
-                     ram_read_stb <= 1;
-
-                     // If the current row address is zero, we have done one
-                     // full scan through the display, and should move to the
-                     // next most significant bit
-                     if (row_address == 0) begin
-                        if (pixel_bit_index == 0)
-                            // If we hit the lsb, wrap to the msb
-                            pixel_bit_index <= 4;
-                        else
-                            pixel_bit_index <= pixel_bit_index - 1;
-                     end
-
-                     // Advance back to the data shift state
-                     state <= s_data_shift;
-                end else begin
-                    time_periods_remaining <= time_periods_remaining - 1;
-                end
-            end
             endcase
         end
     end

@@ -77,13 +77,14 @@ module top(
     reg [7:0] frame_index = 0;
 
     localparam PRESCALER = (`CLK_HZ / 10) - 1;
+    localparam ANIMATION_FRAME_COUNT = 11;
     reg [$clog2(PRESCALER):0] prescaler_reg = 0;
     always @(posedge clk_48mhz) begin
         if (prescaler_reg == 0) begin
             led <= ~led;
-            prescaler_reg <= PRESCALER;
+            prescaler_reg <= PRESCALER[$clog2(PRESCALER):0];
             flash_load_strobe <= 1;
-            if (frame_index == 11)
+            if (frame_index == ANIMATION_FRAME_COUNT)
                 frame_index <= 0;
             else
                 frame_index <= frame_index + 1;
