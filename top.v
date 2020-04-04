@@ -18,24 +18,8 @@ module top(
         input  wire FLASH_SPI_MISO,
 
         // PMOD C1
-        output wire PMOD_C1_D0,
-        output wire PMOD_C1_D1,
-        output wire PMOD_C1_D2,
-        output wire PMOD_C1_D3,
-        output wire PMOD_C1_D4,
-        output wire PMOD_C1_D5,
-        output wire PMOD_C1_D6,
-        output wire PMOD_C1_D7,
-
-        // PMOD C2
-        output wire PMOD_C2_D0,
-        output wire PMOD_C2_D1,
-        output wire PMOD_C2_D2,
-        output wire PMOD_C2_D3,
-        output wire PMOD_C2_D4,
-        output wire PMOD_C2_D5,
-        output wire PMOD_C2_D6,
-        output wire PMOD_C2_D7
+        output wire [7:0] PMOD_C1,
+        output wire [7:0] PMOD_C2
     );
 
     // PLL
@@ -56,18 +40,18 @@ module top(
     end
 
     // Map those PMOD pins to some real signal names
-    wire [1:0] rgb_panel_r = {PMOD_C1_D4, PMOD_C1_D0};
-    wire [1:0] rgb_panel_g = {PMOD_C1_D5, PMOD_C1_D1};
-    wire [1:0] rgb_panel_b = {PMOD_C1_D6, PMOD_C1_D2};
-    wire [1:0] rgb_panel_x = {PMOD_C1_D7, PMOD_C1_D3};
-    wire [4:0] rgb_panel_a = {PMOD_C2_D7,
-                              PMOD_C2_D3,
-                              PMOD_C2_D2,
-                              PMOD_C2_D1,
-                              PMOD_C2_D0};
-    wire rgb_panel_bl = PMOD_C2_D4;
-    wire rgb_panel_la = PMOD_C2_D5;
-    wire rgb_panel_ck = PMOD_C2_D6;
+    wire [1:0] rgb_panel_r = {PMOD_C1[4], PMOD_C1[0]};
+    wire [1:0] rgb_panel_g = {PMOD_C1[5], PMOD_C1[1]};
+    wire [1:0] rgb_panel_b = {PMOD_C1[6], PMOD_C1[2]};
+    wire [1:0] rgb_panel_x = {PMOD_C1[7], PMOD_C1[3]};
+    wire [4:0] rgb_panel_a = {PMOD_C2[7],
+                              PMOD_C2[3],
+                              PMOD_C2[2],
+                              PMOD_C2[1],
+                              PMOD_C2[0]};
+    wire rgb_panel_bl = PMOD_C2[4];
+    wire rgb_panel_la = PMOD_C2[5];
+    wire rgb_panel_ck = PMOD_C2[6];
 
     reg led = 0;
     assign LED_R = led;
