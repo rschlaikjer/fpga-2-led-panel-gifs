@@ -17,8 +17,8 @@ struct DummyFlash {
   uint8_t *spi_sck;
   uint8_t *spi_cs;
 
-  const uint8_t *data =
-      reinterpret_cast<const uint8_t *>("This is a test string");
+  const char *data = "This is a test string";
+  const unsigned data_len = strlen(data);
 
   // Current shift register output index
   unsigned shift_bit_index = 0;
@@ -49,30 +49,36 @@ struct DummyFlash {
     }
 
     // Are we currently selected?
-    if (last_cs == 0) {
-      // Did the clock transition?
-      if (*spi_sck != last_sck) {
-        last_sck = *spi_sck;
-        if (last_sck) {
-          // Posedge
-          preamble_bit_count++;
-        } else {
-          // Negedge
-          // Don't shift data if this is the read preamble
-          if (preamble_bit_count >= 40) {
-            // Set miso to be the next bit
-            *spi_miso =
-                data[shift_byte_index] & (0b1000'0000 >> shift_bit_index) ? 1
-                                                                          : 0;
-            // Increment the bit index
-            shift_bit_index++;
-            // If we hit the end of the byte, increment the byte index
-            if (shift_bit_index > 7) {
-              shift_bit_index = 0;
-              shift_byte_index++;
-              fprintf(stderr, "New byte: %02x\n", data[shift_byte_index]);
-            }
-          }
+    if (last_cs == 1) {
+      // If no, just leave
+      return;
+    }
+
+    // Did the clock transition?
+    if (*spi_sck == last_sck) {
+      return;
+    }
+
+    // Update tracking var
+    last_sck = *spi_sck;
+    if (last_sck) {
+      // Posedge
+      preamble_bit_count++;
+    } else {
+      // Negedge
+      // Don't shift data if this is the read preamble
+      if (preamble_bit_count >= 40) {
+        // Set miso to be the next bit
+        *spi_miso =
+            data[shift_byte_index] & (0b1000'0000 >> shift_bit_index) ? 1 : 0;
+        // Increment the bit index
+        shift_bit_index++;
+        // If we hit the end of the byte, increment the byte index
+        if (shift_bit_index > 7) {
+          shift_bit_index = 0;
+          shift_byte_index++;
+          if (shift_byte_index >= data_len)
+            shift_byte_index = 0;
         }
       }
     }
@@ -90,7 +96,7 @@ int main(int argc, char **argv) {
   // Create an instance of our module under test
   Vflash_loader *flash_loader = new Vflash_loader;
 
-  // Create a fake ADC connected to the master
+  // Create our emulated flash chip on the SPI connections
   DummyFlash dummy_flash(&flash_loader->o_flash_mosi,
                          &flash_loader->i_flash_miso,
                          &flash_loader->o_flash_sck, &flash_loader->o_flash_cs);
@@ -104,7 +110,7 @@ int main(int argc, char **argv) {
 
   // Init to reset
   flash_loader->i_clk = 0;
-  flash_loader->i_read_stb = 1;
+  flash_loader->i_read_stb = 0;
 
   for (unsigned i = 0; i < 150000; i++) {
     // Negative edge
